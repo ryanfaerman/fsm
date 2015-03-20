@@ -1,3 +1,8 @@
+FSM 
+===
+
+[ ![Codeship Status for ryanfaerman/fsm](https://codeship.com/projects/7529e360-b173-0132-b520-32bd639983ea/status?branch=master)](https://codeship.com/projects/69855) [![GoDoc](https://godoc.org/github.com/ryanfaerman/fsm?status.png)](https://godoc.org/github.com/ryanfaerman/fsm) [![Coverage Status](https://coveralls.io/repos/ryanfaerman/fsm/badge.svg)](https://coveralls.io/r/ryanfaerman/fsm)
+
 Why bother going through the trouble of running the guards in parallel? Consider the benchmarks below:
 
 ```shell
