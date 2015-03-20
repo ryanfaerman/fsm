@@ -16,9 +16,10 @@ ok  github.com/ryanfaerman/fsm 1.007s
 ```shell
 $ go test -bench=.
 PASS
-BenchmarkRulesetParallelGuarding    100000       13163 ns/op
-BenchmarkRulesetTransitionPermitted  1000000        1805 ns/op
-BenchmarkRulesetTransitionDenied  10000000         284 ns/op
-BenchmarkRulesetRuleForbids  1000000        1717 ns/op
+BenchmarkRulesetParallelGuarding      100000   13163 ns/op
+BenchmarkRulesetTransitionPermitted  1000000    1805 ns/op
+BenchmarkRulesetTransitionDenied    10000000     284 ns/op
+BenchmarkRulesetRuleForbids          1000000    1717 ns/op
 ok    github.com/ryanfaerman/fsm 14.864s
 ```
+
