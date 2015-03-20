@@ -26,7 +26,8 @@ import (
 type Thing struct {
 	State fsm.State
 
-	machine *fsm.Machine // our machine cache
+	// our machine cache
+	machine *fsm.Machine
 }
 
 // Add methods to comply with the fsm.Stater interface
@@ -50,7 +51,7 @@ func main() {
 
 	some_thing := Thing{State: "pending"} // Our subject
 
-  // Establish some rules for our FSM
+	// Establish some rules for our FSM
 	rules := fsm.Ruleset{}
 	rules.AddTransition(fsm.Transition{"pending", "started"})
 	rules.AddTransition(fsm.Transition{"started", "finished"})
@@ -60,6 +61,7 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
 ```
 
 *Note:* FSM makes no effort to determine the default state for any ruleset. That's your job.
