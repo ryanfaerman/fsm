@@ -10,13 +10,6 @@ var (
   InvalidTransition = errors.New("invalid transition")
 )
 
-// type Context struct {
-//   Done <-chan struct{}
-//   Subject Stater
-//   Goal State
-// }
-// type Guard func(GuardContext) bool
-
 type Transition struct {
 	Origin, Exit State
 }
