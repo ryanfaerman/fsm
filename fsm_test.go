@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/nbio/st"
-	"github.com/turnkeyautogroup/archer-memory/fsm"
+	"github.com/ryanfaerman/fsm"
 )
 
 // Thing is a minimal struct that is an fsm.Stater
