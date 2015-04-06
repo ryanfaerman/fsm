@@ -17,9 +17,10 @@ func (t *Thing) CurrentState() fsm.State { return t.State }
 func (t *Thing) SetState(s fsm.State)    { t.State = s }
 
 func TestRulesetTransitions(t *testing.T) {
-	rules := fsm.Ruleset{}
-	rules.AddTransition(fsm.Transition{"pending", "started"})
-	rules.AddTransition(fsm.Transition{"started", "finished"})
+	rules := fsm.CreateRuleset(
+		fsm.Transition{"pending", "started"},
+		fsm.Transition{"started", "finished"},
+	)
 
 	examples := []struct {
 		subject fsm.Stater

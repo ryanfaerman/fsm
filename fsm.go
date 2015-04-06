@@ -34,6 +34,18 @@ func (r Ruleset) AddTransition(t Transition) {
 	})
 }
 
+// CreateRuleset will establish a ruleset with the provided transitions.
+// This eases initialization when storing within another structure.
+func CreateRuleset(transitions ...Transition) Ruleset {
+  r := Ruleset{}
+
+  for _, t := range transitions {
+    r.AddTransition(t)
+  }
+
+  return r
+}
+
 // Permitted determines if a transition is allowed.
 // This occurs in parallel.
 // NOTE: Guards are not halted if they are short-circuited for some
