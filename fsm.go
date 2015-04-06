@@ -13,9 +13,18 @@ var (
 )
 
 // Transition is the change between States
-type Transition struct {
-	Origin, Exit State
+type Transition interface{
+  Origin() State
+  Exit() State
 }
+
+// T implements the Transition interface; it provides a default
+// implementation of a Transition.
+type T struct {
+	O, E State
+}
+func (t T) Origin() State { return t.O }
+func (t T) Exit()   State { return t.E }
 
 // Ruleset stores the rules for the state machine.
 type Ruleset map[Transition][]Guard
@@ -30,7 +39,7 @@ func (r Ruleset) AddRule(t Transition, guards ...Guard) {
 // AddTransition adds a transition with a default rule
 func (r Ruleset) AddTransition(t Transition) {
 	r.AddRule(t, func(subject Stater, goal State) bool {
-		return subject.CurrentState() == t.Origin
+		return subject.CurrentState() == t.Origin()
 	})
 }
 
@@ -51,7 +60,7 @@ func CreateRuleset(transitions ...Transition) Ruleset {
 // NOTE: Guards are not halted if they are short-circuited for some
 // transition. They may continue running *after* the outcome is determined.
 func (r Ruleset) Permitted(subject Stater, goal State) bool {
-	attempt := Transition{subject.CurrentState(), goal}
+	attempt := T{subject.CurrentState(), goal}
 
 	if guards, ok := r[attempt]; ok {
 		outcome := make(chan bool)
