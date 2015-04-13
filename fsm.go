@@ -9,13 +9,13 @@ type State string
 type Guard func(subject Stater, goal State) bool
 
 var (
-  InvalidTransition = errors.New("invalid transition")
+	InvalidTransition = errors.New("invalid transition")
 )
 
 // Transition is the change between States
-type Transition interface{
-  Origin() State
-  Exit() State
+type Transition interface {
+	Origin() State
+	Exit() State
 }
 
 // T implements the Transition interface; it provides a default
@@ -23,8 +23,9 @@ type Transition interface{
 type T struct {
 	O, E State
 }
+
 func (t T) Origin() State { return t.O }
-func (t T) Exit()   State { return t.E }
+func (t T) Exit() State   { return t.E }
 
 // Ruleset stores the rules for the state machine.
 type Ruleset map[Transition][]Guard
@@ -46,13 +47,13 @@ func (r Ruleset) AddTransition(t Transition) {
 // CreateRuleset will establish a ruleset with the provided transitions.
 // This eases initialization when storing within another structure.
 func CreateRuleset(transitions ...Transition) Ruleset {
-  r := Ruleset{}
+	r := Ruleset{}
 
-  for _, t := range transitions {
-    r.AddTransition(t)
-  }
+	for _, t := range transitions {
+		r.AddTransition(t)
+	}
 
-  return r
+	return r
 }
 
 // Permitted determines if a transition is allowed.
@@ -66,19 +67,19 @@ func (r Ruleset) Permitted(subject Stater, goal State) bool {
 		outcome := make(chan bool)
 
 		for _, guard := range guards {
-			go func() {
-				outcome <- guard(subject, goal)
-			}()
+			go func(g Guard) {
+				outcome <- g(subject, goal)
+			}(guard)
 		}
 
-    for range guards {
-      select {
-        case o := <-outcome:
-          if !o {
-            return false
-          }
-      }
-    }
+		for range guards {
+			select {
+			case o := <-outcome:
+				if !o {
+					return false
+				}
+			}
+		}
 
 		return true // All guards passed
 	}
@@ -112,23 +113,25 @@ func (m Machine) Transition(goal State) error {
 
 // New initializes a machine
 func New(opts ...func(*Machine)) Machine {
- var m Machine
+	var m Machine
 
- for _, opt := range opts { opt(&m) }
+	for _, opt := range opts {
+		opt(&m)
+	}
 
- return m
+	return m
 }
 
 // WithSubject is intended to be passed to New to set the Subject
 func WithSubject(s Stater) func(*Machine) {
-  return func(m *Machine) {
-    m.Subject = s
-  }
+	return func(m *Machine) {
+		m.Subject = s
+	}
 }
 
 // WithRules is intended to be passed to New to set the Rules
 func WithRules(r Ruleset) func(*Machine) {
-  return func(m *Machine) {
-    m.Rules = &r
-  }
+	return func(m *Machine) {
+		m.Rules = &r
+	}
 }
