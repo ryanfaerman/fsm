@@ -15,9 +15,11 @@ go get github.com/ryanfaerman/fsm
 ## Usage
 
 ```go
+
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/ryanfaerman/fsm"
@@ -53,13 +55,18 @@ func main() {
 
 	// Establish some rules for our FSM
 	rules := fsm.Ruleset{}
-	rules.AddTransition(fsm.Transition{"pending", "started"})
-	rules.AddTransition(fsm.Transition{"started", "finished"})
+	rules.AddTransition(fsm.T{"pending", "started"})
+	rules.AddTransition(fsm.T{"started", "finished"})
 
-	err = some_thing.Apply(rules).Transition("started")
+	machine := some_thing.Apply(&rules)
+
+	err = machine.Transition("started")
+
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Println(some_thing.CurrentState())
 }
 
 ```
