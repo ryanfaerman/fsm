@@ -6,7 +6,7 @@ type State string
 
 // Guard provides protection against transitioning to the goal State.
 // Returning true/false indicates if the transition is permitted or not.
-type Guard func(subject Stater, goal State) bool
+type Guard func(subject Stater, goal State) error
 
 var (
 	InvalidTransition = errors.New("invalid transition")
@@ -39,8 +39,11 @@ func (r Ruleset) AddRule(t Transition, guards ...Guard) {
 
 // AddTransition adds a transition with a default rule
 func (r Ruleset) AddTransition(t Transition) {
-	r.AddRule(t, func(subject Stater, goal State) bool {
-		return subject.CurrentState() == t.Origin()
+	r.AddRule(t, func(subject Stater, goal State) error {
+		if subject.CurrentState() != t.Origin() {
+			return InvalidTransition
+		}
+		return nil
 	})
 }
 
@@ -60,11 +63,11 @@ func CreateRuleset(transitions ...Transition) Ruleset {
 // This occurs in parallel.
 // NOTE: Guards are not halted if they are short-circuited for some
 // transition. They may continue running *after* the outcome is determined.
-func (r Ruleset) Permitted(subject Stater, goal State) bool {
+func (r Ruleset) Permitted(subject Stater, goal State) error {
 	attempt := T{subject.CurrentState(), goal}
 
 	if guards, ok := r[attempt]; ok {
-		outcome := make(chan bool)
+		outcome := make(chan error)
 
 		for _, guard := range guards {
 			go func(g Guard) {
@@ -74,16 +77,16 @@ func (r Ruleset) Permitted(subject Stater, goal State) bool {
 
 		for range guards {
 			select {
-			case o := <-outcome:
-				if !o {
-					return false
+			case err := <-outcome:
+				if err != nil {
+					return err
 				}
 			}
 		}
 
-		return true // All guards passed
+		return nil // All guards passed
 	}
-	return false // No rule found for the transition
+	return InvalidTransition // No rule found for the transition
 }
 
 // Stater can be passed into the FSM. The Stater is reponsible for setting
@@ -103,12 +106,13 @@ type Machine struct {
 
 // Transition attempts to move the Subject to the Goal state.
 func (m Machine) Transition(goal State) error {
-	if m.Rules.Permitted(m.Subject, goal) {
+	err := m.Rules.Permitted(m.Subject, goal)
+	if err == nil {
 		m.Subject.SetState(goal)
 		return nil
 	}
 
-	return InvalidTransition
+	return err
 }
 
 // New initializes a machine
