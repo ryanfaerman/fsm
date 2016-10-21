@@ -2,14 +2,13 @@ package fsm
 
 import "errors"
 
-type State string
-
 // Guard provides protection against transitioning to the goal State.
 // Returning true/false indicates if the transition is permitted or not.
 type Guard func(subject Stater, goal State) bool
 
 var (
-	InvalidTransition = errors.New("invalid transition")
+	// ErrInvalidTransition describes the errors when doing an invalid transition
+	ErrInvalidTransition = errors.New("invalid transition")
 )
 
 // Transition is the change between States
@@ -24,8 +23,11 @@ type T struct {
 	O, E State
 }
 
+// Origin returns the starting state
 func (t T) Origin() State { return t.O }
-func (t T) Exit() State   { return t.E }
+
+// Exit returns the ending state
+func (t T) Exit() State { return t.E }
 
 // Ruleset stores the rules for the state machine.
 type Ruleset map[Transition][]Guard
@@ -108,7 +110,8 @@ func (m Machine) Transition(goal State) error {
 		return nil
 	}
 
-	return InvalidTransition
+	// TODO: more details for errors
+	return ErrInvalidTransition
 }
 
 // New initializes a machine
