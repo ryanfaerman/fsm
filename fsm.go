@@ -1,6 +1,9 @@
 package fsm
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Guard provides protection against transitioning to the goal State.
 // Returning true/false indicates if the transition is permitted or not.
@@ -78,6 +81,7 @@ func (r Ruleset) Permitted(subject Stater, goal State) bool {
 			select {
 			case o := <-outcome:
 				if !o {
+					fmt.Println("Guarded:", o)
 					return false
 				}
 			}
@@ -85,7 +89,8 @@ func (r Ruleset) Permitted(subject Stater, goal State) bool {
 
 		return true // All guards passed
 	}
-	return false // No rule found for the transition
+	fmt.Println("No rules found") // TODO:
+	return false                  // No rule found for the transition
 }
 
 // Stater can be passed into the FSM. The Stater is reponsible for setting
