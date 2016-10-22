@@ -7,11 +7,12 @@ import (
 
 // Guard provides protection against transitioning to the goal State.
 // Returning an error if the transition is not permitted
-type Guard func(subject Stater, goal State) error
+type Guard func(start State, goal State) error
 
 const (
-	errTransitionFormat = "Cannot transition from %s to %s"
-	errNoRulesFormat    = "No rules found for %s to %s"
+	errTransitionFormat  = "Cannot transition from %s to %s"
+	errNoRulesFormat     = "No rules found for %s to %s"
+	errGuardFailedFormat = "Guard failed from %s to %s: %s"
 )
 
 var (
@@ -28,14 +29,14 @@ type Transition interface {
 // T implements the Transition interface; it provides a default
 // implementation of a Transition.
 type T struct {
-	O, E State
+	O, E string
 }
 
 // Origin returns the starting state
-func (t T) Origin() State { return t.O }
+func (t T) Origin() State { return NewState(String(t.O)) }
 
 // Exit returns the ending state
-func (t T) Exit() State { return t.E }
+func (t T) Exit() State { return NewState(String(t.E)) }
 
 // Ruleset stores the rules for the state machine.
 type Ruleset map[Transition][]Guard
@@ -49,9 +50,9 @@ func (r Ruleset) AddRule(t Transition, guards ...Guard) {
 
 // AddTransition adds a transition with a default rule
 func (r Ruleset) AddTransition(t Transition) {
-	r.AddRule(t, func(subject Stater, goal State) error {
-		if subject.CurrentState() != t.Origin() {
-			return fmt.Errorf(errTransitionFormat, subject.CurrentState().ID(), goal.ID())
+	r.AddRule(t, func(start State, goal State) error {
+		if start.ID() != t.Origin().ID() {
+			return fmt.Errorf(errTransitionFormat, start.ID(), goal.ID())
 		}
 		return nil
 	})
@@ -73,15 +74,15 @@ func CreateRuleset(transitions ...Transition) Ruleset {
 // This occurs in parallel.
 // NOTE: Guards are not halted if they are short-circuited for some
 // transition. They may continue running *after* the outcome is determined.
-func (r Ruleset) Permitted(subject Stater, goal State) error {
-	attempt := T{subject.CurrentState(), goal}
+func (r Ruleset) Permitted(start State, goal State) error {
+	attempt := T{start.ID(), goal.ID()}
 
 	if guards, ok := r[attempt]; ok {
 		outcome := make(chan error)
 
 		for _, guard := range guards {
 			go func(g Guard) {
-				outcome <- g(subject, goal)
+				outcome <- g(start, goal)
 			}(guard)
 		}
 
@@ -89,35 +90,29 @@ func (r Ruleset) Permitted(subject Stater, goal State) error {
 			select {
 			case err := <-outcome:
 				if err != nil {
-					return err
+					return fmt.Errorf(errGuardFailedFormat,
+						start.ID(), goal.ID(), err.Error())
 				}
 			}
 		}
 
 		return nil
 	}
-	return fmt.Errorf(errNoRulesFormat, subject.CurrentState().ID(), goal.ID())
+	return fmt.Errorf(errNoRulesFormat, start.ID(), goal.ID())
 }
 
-// Stater can be passed into the FSM. The Stater is reponsible for setting
-// its own default state. Behavior of a Stater without a State is undefined.
-type Stater interface {
-	CurrentState() State
-	SetState(State)
-}
-
-// Machine is a pairing of Rules and a Subject.
-// The subject or rules may be changed at any time within
+// Machine is a pairing of Rules and a State.
+// The state or rules may be changed at any time within
 // the machine's lifecycle.
 type Machine struct {
-	Rules   *Ruleset
-	Subject Stater
+	Rules *Ruleset
+	State State
 }
 
 // Transition attempts to move the Subject to the Goal state.
-func (m Machine) Transition(goal State) (err error) {
-	if err = m.Rules.Permitted(m.Subject, goal); err == nil {
-		m.Subject.SetState(goal)
+func (m *Machine) Transition(goal State) (err error) {
+	if err = m.Rules.Permitted(m.State, goal); err == nil {
+		m.State = goal
 		return nil
 	}
 
@@ -133,18 +128,4 @@ func New(opts ...func(*Machine)) Machine {
 	}
 
 	return m
-}
-
-// WithSubject is intended to be passed to New to set the Subject
-func WithSubject(s Stater) func(*Machine) {
-	return func(m *Machine) {
-		m.Subject = s
-	}
-}
-
-// WithRules is intended to be passed to New to set the Rules
-func WithRules(r Ruleset) func(*Machine) {
-	return func(m *Machine) {
-		m.Rules = &r
-	}
 }

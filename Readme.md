@@ -3,68 +3,124 @@ FSM
 
 [ ![Codeship Status for ryanfaerman/fsm](https://codeship.com/projects/7529e360-b173-0132-b520-32bd639983ea/status?branch=master)](https://codeship.com/projects/69855) [![GoDoc](https://godoc.org/github.com/ryanfaerman/fsm?status.png)](https://godoc.org/github.com/ryanfaerman/fsm)
 
+FSM is a fork from [github.com/ryanfaerman/fsm](https://github.com/ryanfaerman/fsm), and is used internally at ProcessOut for quite a few things.
 
-FSM provides a lightweight finite state machine for Golang. It runs allows any number of transition checks you'd like the it runs them in parallel. It's tested and benchmarked too.
+### From the author:
+> FSM provides a lightweight finite state machine for Golang. It runs allows any number of transition checks you'd like the it runs them in parallel. It's tested and benchmarked too.
+
+### Why we forked:
+We really liked ryanfaerman's go package for a finite state machine, 
+but we needed it to be more capable in terms of `guards`,
+ as well as being more transparent as to what is happening
+(switch from `bool` to `error`).
+
+Basically, you can define more complex `rules` to guarantee that the flow you are
+using is sane according to the finite state machine.
+
 
 ## Install
 
 ```
-go get github.com/ryanfaerman/fsm
+go get github.com/processout/fsm
 ```
+
 
 ## Usage
 
 ```go
+// package main is similar to github.com/ryanfaerman/fsm's package, but is adjusted
+// for our modifications
 package main
 
 import (
-    "log"
-    "fmt"
-    "github.com/ryanfaerman/fsm"
+	"errors"
+	"fmt"
+
+	"github.com/processout/fsm"
 )
 
-type Thing struct {
-    State fsm.State
+// FlowState represents a state within a flow that should follow a
+// finite state machine, according to your rules. Has to implement IDer
+type FlowState struct {
+	Name      string
+	CanEvolve bool
+}
 
-    // our machine cache
-    machine *fsm.Machine
+// ID will return the name as to ID the flow for the transitions
+func (f FlowState) ID() string { return f.Name }
+
+// Machine describes the flow in one go, one could also use
+type Machine struct {
+	State fsm.State
+
+	// our machine cache
+	machine *fsm.Machine
 }
 
 // Add methods to comply with the fsm.Stater interface
-func (t *Thing) CurrentState() fsm.State { return t.State }
-func (t *Thing) SetState(s fsm.State)    { t.State = s }
+func (m *Machine) CurrentState() fsm.State { return m.State }
+func (m *Machine) SetState(s fsm.State)    { m.State = s }
 
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances state machine without reallocating the machine. While not
 // required, it's something I like to have.
-func (t *Thing) Apply(r *fsm.Ruleset) *fsm.Machine {
-    if t.machine == nil {
-        t.machine = &fsm.Machine{Subject: t}
-    }
+func (m *Machine) Apply(r *fsm.Ruleset) *fsm.Machine {
+	if m.machine == nil {
+		m.machine = &fsm.Machine{Subject: m}
+	}
 
-    t.machine.Rules = r
-    return t.machine
+	m.machine.Rules = r
+	return m.machine
 }
 
+func checkEvolve(subject fsm.Stater, goal fsm.State) error {
+	if subject.CurrentState().I().(FlowState).CanEvolve {
+		return nil
+	}
+	return errors.New("Can't evolve")
+}
+
+// Say you have two flows, flow1 and flow2, you want to see
+// if you can add or if the flow respects the fsm.
 func main() {
-    var err error
+	var err error
 
-    some_thing := Thing{State: "pending"} // Our subject
-    fmt.Println(some_thing)
+	// Say the flow can only transition if CanEvolve==true
+	pendingt := fsm.NewState(FlowState{Name: "pending", CanEvolve: true})
+	pendingf := fsm.NewState(FlowState{Name: "pending", CanEvolve: false})
+	startedt := fsm.NewState(FlowState{Name: "started", CanEvolve: true})
+	finished := fsm.NewState(FlowState{Name: "finished", CanEvolve: false})
 
-    // Establish some rules for our FSM
-    rules := fsm.Ruleset{}
-    rules.AddTransition(fsm.T{"pending", "started"})
-    rules.AddTransition(fsm.T{"started", "finished"})
+	flow1 := []fsm.State{pendingt, startedt, finished}
+	flow2 := []fsm.State{pendingf, startedt, finished}
 
-    err = some_thing.Apply(&rules).Transition("started")
-    if err != nil {
-        log.Fatal(err)
-    }
+	// Define our machine and its rules
+	machine := Machine{}
+	rules := fsm.Ruleset{}
+	rules.AddRule(fsm.T{"pending", "started"}, checkEvolve)
+	rules.AddRule(fsm.T{"started", "finished"}, checkEvolve)
+	machine.Apply(&rules)
 
-    fmt.Println(some_thing)
+	// Test flow1
+	machine.SetState(flow1[0])
+	for _, s := range flow1[1:] {
+		if err = machine.machine.Transition(s); err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+	fmt.Println(machine) // finished
+
+	// Test flow2
+	machine.SetState(flow2[0])
+	for _, s := range flow2[1:] {
+		if err = machine.machine.Transition(s); err != nil {
+			fmt.Println("To be expected:", err)
+			break
+		}
+	}
+	fmt.Println(machine) // pending
 }
-
 ```
 
 *Note:* FSM makes no effort to determine the default state for any ruleset. That's your job.
