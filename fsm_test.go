@@ -2,6 +2,7 @@ package fsm_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -19,8 +20,8 @@ var (
 
 func TestRulesetTransitions(t *testing.T) {
 	rules := fsm.CreateRuleset(
-		fsm.T{"pending", "started"},
-		fsm.T{"started", "finished"},
+		fsm.NewTransition(statePending, stateStarted),
+		fsm.NewTransition(stateStarted, stateFinished),
 	)
 
 	examples := []struct {
@@ -43,24 +44,28 @@ func TestRulesetTransitions(t *testing.T) {
 	}
 
 	for i, ex := range examples {
-		out := rules.Permitted(ex.start, ex.goal) == nil
+		err := rules.Permitted(ex.start, ex.goal)
+		out := err == nil
 		st.Expect(t, out, ex.outcome, i)
+		if out != ex.outcome {
+			fmt.Println("something wrong happened here", i, err)
+		}
 	}
 }
 
 func TestRulesetParallelGuarding(t *testing.T) {
 	rules := fsm.Ruleset{}
-	rules.AddTransition(fsm.T{"pending", "started"})
-	rules.AddTransition(fsm.T{"started", "finished"})
+	rules.AddTransition(fsm.NewTransition(statePending, stateStarted))
+	rules.AddTransition(fsm.NewTransition(stateStarted, stateFinished))
 
 	// Add two failing rules, the slow should be caught first
-	rules.AddRule(fsm.T{"started", "finished"}, func(start fsm.State, goal fsm.State) error {
+	rules.AddRule(fsm.NewTransition(stateStarted, stateFinished), func(start fsm.State, goal fsm.State) error {
 		time.Sleep(1 * time.Second)
 		t.Error("Slow rule should have been short-circuited")
 		return testError
 	})
 
-	rules.AddRule(fsm.T{"started", "finished"}, func(start fsm.State, goal fsm.State) error {
+	rules.AddRule(fsm.NewTransition(stateStarted, stateFinished), func(start fsm.State, goal fsm.State) error {
 		return testError
 	})
 
@@ -70,8 +75,8 @@ func TestRulesetParallelGuarding(t *testing.T) {
 
 func TestMachineTransition(t *testing.T) {
 	rules := fsm.Ruleset{}
-	rules.AddTransition(fsm.T{"pending", "started"})
-	rules.AddTransition(fsm.T{"started", "finished"})
+	rules.AddTransition(fsm.NewTransition(statePending, stateStarted))
+	rules.AddTransition(fsm.NewTransition(stateStarted, stateFinished))
 
 	the_machine := fsm.Machine{
 		State: statePending,
@@ -98,16 +103,16 @@ func TestMachineTransition(t *testing.T) {
 
 func BenchmarkRulesetParallelGuarding(b *testing.B) {
 	rules := fsm.Ruleset{}
-	rules.AddTransition(fsm.T{"pending", "started"})
-	rules.AddTransition(fsm.T{"started", "finished"})
+	rules.AddTransition(fsm.NewTransition(statePending, stateStarted))
+	rules.AddTransition(fsm.NewTransition(stateStarted, stateFinished))
 
 	// Add two failing rules, one very slow and the other terribly fast
-	rules.AddRule(fsm.T{"started", "finished"}, func(start fsm.State, goal fsm.State) error {
+	rules.AddRule(fsm.NewTransition(stateStarted, stateFinished), func(start fsm.State, goal fsm.State) error {
 		time.Sleep(1 * time.Second)
 		return testError
 	})
 
-	rules.AddRule(fsm.T{"started", "finished"}, func(start fsm.State, goal fsm.State) error {
+	rules.AddRule(fsm.NewTransition(stateStarted, stateFinished), func(start fsm.State, goal fsm.State) error {
 		return testError
 	})
 
@@ -124,8 +129,8 @@ func BenchmarkRulesetTransitionPermitted(b *testing.B) {
 	// short-circuiting, this should actually be a little bit slower as a result,
 	// depending on the number of guards that must pass.
 	rules := fsm.Ruleset{}
-	rules.AddTransition(fsm.T{"pending", "started"})
-	rules.AddTransition(fsm.T{"started", "finished"})
+	rules.AddTransition(fsm.NewTransition(statePending, stateStarted))
+	rules.AddTransition(fsm.NewTransition(stateStarted, stateFinished))
 
 	some_thing := stateStarted
 
@@ -144,8 +149,8 @@ func BenchmarkRulesetTransitionInvalid(b *testing.B) {
 	// bumping up against the speed of a map lookup itself.
 
 	rules := fsm.Ruleset{}
-	rules.AddTransition(fsm.T{"pending", "started"})
-	rules.AddTransition(fsm.T{"started", "finished"})
+	rules.AddTransition(fsm.NewTransition(statePending, stateStarted))
+	rules.AddTransition(fsm.NewTransition(stateStarted, stateFinished))
 
 	some_thing := statePending
 
@@ -164,9 +169,9 @@ func BenchmarkRulesetRuleForbids(b *testing.B) {
 	// fail (returning false) will short circuit the execution, getting some some speed.
 
 	rules := fsm.Ruleset{}
-	rules.AddTransition(fsm.T{"pending", "started"})
+	rules.AddTransition(fsm.NewTransition(statePending, stateStarted))
 
-	rules.AddRule(fsm.T{"started", "finished"}, func(start fsm.State, goal fsm.State) error {
+	rules.AddRule(fsm.NewTransition(stateStarted, stateFinished), func(start fsm.State, goal fsm.State) error {
 		return testError
 	})
 

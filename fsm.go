@@ -22,24 +22,33 @@ var (
 
 // Transition is the change between States
 type Transition interface {
-	Origin() State
-	Exit() State
+	Origin() ID
+	Exit() ID
 }
 
 // T implements the Transition interface; it provides a default
-// implementation of a Transition.
+// implementation of a Transition. It should only be instantiated
+// with NewTransition.
 type T struct {
-	O, E string
+	O, E ID
 }
 
 // Origin returns the starting state
-func (t T) Origin() State { return NewState(String(t.O)) }
+func (t T) Origin() ID { return t.O }
 
 // Exit returns the ending state
-func (t T) Exit() State { return NewState(String(t.E)) }
+func (t T) Exit() ID { return t.E }
+
+// NewTransition let's you create a new transition and apply some rules
+func NewTransition(i1 IDer, i2 IDer) T {
+	return T{
+		O: i1.ID(),
+		E: i2.ID(),
+	}
+}
 
 // Ruleset stores the rules for the state machine.
-type Ruleset map[Transition][]Guard
+type Ruleset map[ID][]Guard
 
 // AddRule adds Guards for the given Transition
 func (r Ruleset) AddRule(t Transition, guards ...Guard) {
@@ -51,7 +60,7 @@ func (r Ruleset) AddRule(t Transition, guards ...Guard) {
 // AddTransition adds a transition with a default rule
 func (r Ruleset) AddTransition(t Transition) {
 	r.AddRule(t, func(start State, goal State) error {
-		if start.ID() != t.Origin().ID() {
+		if start.ID() != t.Origin() {
 			return fmt.Errorf(errTransitionFormat, start.ID(), goal.ID())
 		}
 		return nil

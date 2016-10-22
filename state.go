@@ -1,9 +1,12 @@
 package fsm
 
+// ID is the type of what will be used to compare between states
+type ID interface{}
+
 // State describes a node of the machine, see NewState for more info,
 // use ID() and I() to get information for this state
 type State struct {
-	id string
+	id ID
 	i  interface{}
 }
 
@@ -21,7 +24,7 @@ func NewState(i IDer) State {
 }
 
 // ID returns the id of the state
-func (s State) ID() string {
+func (s State) ID() ID {
 	return s.id
 }
 
@@ -33,8 +36,8 @@ func (s State) I() interface{} {
 // IDer describes an interface that can return an ID for
 // the transitions to take place, (e.g. id:'pending'->id:'started').
 type IDer interface {
-	// ID returns the id of this node/state
-	ID() string
+	// ID returns the id of this node/state, to be used for state identification
+	ID() ID
 }
 
 // String implements the IDer interface, in case you only want to base yourself
@@ -42,6 +45,6 @@ type IDer interface {
 type String string
 
 // ID is for the IDer interface
-func (s String) ID() string {
-	return string(s)
+func (s String) ID() ID {
+	return s
 }
