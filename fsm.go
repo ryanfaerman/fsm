@@ -96,7 +96,7 @@ func (r Ruleset) Permitted(subject Stater, goal State) error {
 
 		return nil
 	}
-	return fmt.Errorf(errNoRulesFormat, subject.CurrentState(), goal)
+	return fmt.Errorf(errNoRulesFormat, subject.CurrentState().ID(), goal.ID())
 }
 
 // Stater can be passed into the FSM. The Stater is reponsible for setting

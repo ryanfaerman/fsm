@@ -1,6 +1,7 @@
 package fsm_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ var (
 	statePending  = fsm.NewState(fsm.String("pending"))
 	stateStarted  = fsm.NewState(fsm.String("started"))
 	stateFinished = fsm.NewState(fsm.String("finished"))
+	testError     = errors.New("test error")
 )
 
 // Thing is a minimal struct that is an fsm.Stater
@@ -48,7 +50,8 @@ func TestRulesetTransitions(t *testing.T) {
 	}
 
 	for i, ex := range examples {
-		st.Expect(t, rules.Permitted(ex.subject, ex.goal), ex.outcome, i)
+		out := rules.Permitted(ex.subject, ex.goal) == nil
+		st.Expect(t, out, ex.outcome, i)
 	}
 }
 
@@ -58,17 +61,17 @@ func TestRulesetParallelGuarding(t *testing.T) {
 	rules.AddTransition(fsm.T{stateStarted, stateFinished})
 
 	// Add two failing rules, the slow should be caught first
-	rules.AddRule(fsm.T{stateStarted, stateFinished}, func(subject fsm.Stater, goal fsm.State) bool {
+	rules.AddRule(fsm.T{stateStarted, stateFinished}, func(subject fsm.Stater, goal fsm.State) error {
 		time.Sleep(1 * time.Second)
 		t.Error("Slow rule should have been short-circuited")
-		return false
+		return testError
 	})
 
-	rules.AddRule(fsm.T{stateStarted, stateFinished}, func(subject fsm.Stater, goal fsm.State) bool {
-		return false
+	rules.AddRule(fsm.T{stateStarted, stateFinished}, func(subject fsm.Stater, goal fsm.State) error {
+		return testError
 	})
 
-	st.Expect(t, rules.Permitted(&Thing{State: stateStarted}, stateFinished), false)
+	st.Expect(t, rules.Permitted(&Thing{State: stateStarted}, stateFinished), testError)
 }
 
 func TestMachineTransition(t *testing.T) {
@@ -83,18 +86,18 @@ func TestMachineTransition(t *testing.T) {
 
 	// should not be able to transition to the current state
 	err = the_machine.Transition(statePending)
-	st.Expect(t, err, fsm.ErrInvalidTransition)
-	st.Expect(t, some_thing.State, fsm.State(statePending))
+	st.Expect(t, err, errors.New("No rules found for pending to pending"))
+	st.Expect(t, some_thing.State, statePending)
 
 	// should not be able to skip states
 	err = the_machine.Transition(stateFinished)
-	st.Expect(t, err, fsm.ErrInvalidTransition)
-	st.Expect(t, some_thing.State, fsm.State(statePending))
+	st.Expect(t, err, errors.New("No rules found for pending to finished"))
+	st.Expect(t, some_thing.State, statePending)
 
 	// should be able to transition to the next valid state
 	err = the_machine.Transition(stateStarted)
 	st.Expect(t, err, nil)
-	st.Expect(t, some_thing.State, fsm.State(stateStarted))
+	st.Expect(t, some_thing.State, stateStarted)
 }
 
 func BenchmarkRulesetParallelGuarding(b *testing.B) {
@@ -103,13 +106,13 @@ func BenchmarkRulesetParallelGuarding(b *testing.B) {
 	rules.AddTransition(fsm.T{stateStarted, stateFinished})
 
 	// Add two failing rules, one very slow and the other terribly fast
-	rules.AddRule(fsm.T{stateStarted, stateFinished}, func(subject fsm.Stater, goal fsm.State) bool {
+	rules.AddRule(fsm.T{stateStarted, stateFinished}, func(subject fsm.Stater, goal fsm.State) error {
 		time.Sleep(1 * time.Second)
-		return false
+		return testError
 	})
 
-	rules.AddRule(fsm.T{stateStarted, stateFinished}, func(subject fsm.Stater, goal fsm.State) bool {
-		return false
+	rules.AddRule(fsm.T{stateStarted, stateFinished}, func(subject fsm.Stater, goal fsm.State) error {
+		return testError
 	})
 
 	b.ResetTimer()
@@ -167,8 +170,8 @@ func BenchmarkRulesetRuleForbids(b *testing.B) {
 	rules := fsm.Ruleset{}
 	rules.AddTransition(fsm.T{statePending, stateStarted})
 
-	rules.AddRule(fsm.T{stateStarted, stateFinished}, func(subject fsm.Stater, goal fsm.State) bool {
-		return false
+	rules.AddRule(fsm.T{stateStarted, stateFinished}, func(subject fsm.Stater, goal fsm.State) error {
+		return testError
 	})
 
 	some_thing := &Thing{State: stateStarted}
