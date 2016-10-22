@@ -15,17 +15,9 @@ type FlowState struct {
 }
 
 // ID will return the name as to ID the flow for the transitions
-func (f FlowState) ID() string { return f.Name }
+func (f FlowState) ID() fsm.ID { return f.Name }
 
-// Machine describes the flow in one go, one could also use "fsm.T",
-// but there is no caching
-type Machine struct {
-	State fsm.State
-
-	// our machine cache
-	machine *fsm.Machine
-}
-
+// checkEvolve will be a guard for checking if a transition can go through
 func checkEvolve(start fsm.State, goal fsm.State) error {
 	if start.I().(FlowState).CanEvolve {
 		return nil
@@ -51,8 +43,9 @@ func main() {
 	// Define our machine and its rules
 	machine := fsm.Machine{}
 	rules := fsm.Ruleset{}
-	rules.AddRule(fsm.T{"pending", "started"}, checkEvolve)
-	rules.AddRule(fsm.T{"started", "finished"}, checkEvolve)
+	// Remember, for transitions only the ID() function matters (but you can do more in guards)
+	rules.AddRule(fsm.NewTransition(pendingf, startedt), checkEvolve)
+	rules.AddRule(fsm.NewTransition(startedt, finished), checkEvolve)
 	machine.Rules = &rules
 
 	// Test flow1
