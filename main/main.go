@@ -46,6 +46,7 @@ func main() {
 
 	flow1 := []fsm.State{pendingt, startedt, finished}
 	flow2 := []fsm.State{pendingf, startedt, finished}
+	flow3 := []fsm.State{pendingt, finished}
 
 	// Define our machine and its rules
 	machine := fsm.Machine{}
@@ -69,6 +70,16 @@ func main() {
 	for _, s := range flow2[1:] {
 		if err = machine.Transition(s); err != nil {
 			fmt.Println("To be expected:", err)
+			break
+		}
+	}
+	fmt.Println(machine) // pending
+
+	// Test flow3
+	machine.State = flow3[0]
+	for _, s := range flow3[1:] {
+		if err = machine.Transition(s); err != nil {
+			fmt.Println("To be expected", err)
 			break
 		}
 	}
