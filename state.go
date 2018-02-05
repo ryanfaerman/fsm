@@ -7,7 +7,7 @@ type ID interface{}
 // use ID() and I() to get information for this state
 type State struct {
 	id ID
-	i  interface{}
+	I  interface{}
 }
 
 // NewState creates a new state where a dataset which can be IDed
@@ -19,18 +19,13 @@ type State struct {
 func NewState(i IDer) State {
 	return State{
 		id: i.ID(),
-		i:  i,
+		I:  i,
 	}
 }
 
 // ID returns the id of the state
 func (s State) ID() ID {
-	return s.id
-}
-
-// I returns the interface associated with the state
-func (s State) I() interface{} {
-	return s.i
+	return s.I.(IDer).ID()
 }
 
 // IDer describes an interface that can return an ID for

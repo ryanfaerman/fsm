@@ -7,7 +7,7 @@ import (
 
 // Guard provides protection against transitioning to the goal State.
 // Returning an error if the transition is not permitted
-type Guard func(start State, goal State) error
+type Guard func(start *State, goal *State) error
 
 const (
 	errTransitionFormat  = "Cannot transition from %s to %s"
@@ -59,7 +59,7 @@ func (r Ruleset) AddRule(t Transition, guards ...Guard) {
 
 // AddTransition adds a transition with a default rule
 func (r Ruleset) AddTransition(t Transition) {
-	r.AddRule(t, func(start State, goal State) error {
+	r.AddRule(t, func(start *State, goal *State) error {
 		if start.ID() != t.Origin() {
 			return fmt.Errorf(errTransitionFormat, start.ID(), goal.ID())
 		}
@@ -83,7 +83,7 @@ func CreateRuleset(transitions ...Transition) Ruleset {
 // This occurs in parallel.
 // NOTE: Guards are not halted if they are short-circuited for some
 // transition. They may continue running *after* the outcome is determined.
-func (r Ruleset) Permitted(start State, goal State) error {
+func (r Ruleset) Permitted(start *State, goal *State) error {
 	attempt := T{start.ID(), goal.ID()}
 
 	if guards, ok := r[attempt]; ok {
@@ -91,9 +91,14 @@ func (r Ruleset) Permitted(start State, goal State) error {
 
 		for _, guard := range guards {
 			go func(g Guard) {
-				outcome <- g(start, goal)
+				err := g(start, goal)
+				start.id = start.ID()
+				goal.id = goal.ID()
+				outcome <- err
 			}(guard)
 		}
+		// spew.Dump(start, goal)
+		// fmt.Println("---")
 
 		for range guards {
 			select {
@@ -120,7 +125,7 @@ type Machine struct {
 
 // Transition attempts to move the Subject to the Goal state.
 func (m *Machine) Transition(goal State) (err error) {
-	if err = m.Rules.Permitted(m.State, goal); err == nil {
+	if err = m.Rules.Permitted(&m.State, &goal); err == nil {
 		m.State = goal
 		return nil
 	}
