@@ -87,29 +87,16 @@ func (r Ruleset) Permitted(start *State, goal *State) error {
 	attempt := T{start.ID(), goal.ID()}
 
 	if guards, ok := r[attempt]; ok {
-		outcome := make(chan error)
 
 		for _, guard := range guards {
-			go func(g Guard) {
-				err := g(start, goal)
-				start.id = start.ID()
-				goal.id = goal.ID()
-				outcome <- err
-			}(guard)
-		}
-		// spew.Dump(start, goal)
-		// fmt.Println("---")
-
-		for range guards {
-			select {
-			case err := <-outcome:
-				if err != nil {
-					return fmt.Errorf(errGuardFailedFormat,
-						start.ID(), goal.ID(), err.Error())
-				}
+			err := guard(start, goal)
+			if err != nil {
+				return fmt.Errorf(errGuardFailedFormat, start.ID(), goal.ID(), err.Error())
 			}
-		}
 
+			start.id = start.ID()
+			goal.id = goal.ID()
+		}
 		return nil
 	}
 	return fmt.Errorf(errNoRulesFormat, start.ID(), goal.ID())
