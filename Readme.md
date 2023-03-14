@@ -110,4 +110,6 @@ ok  github.com/ryanfaerman/fsm 1.007s
 
 For the Parallel vs Serial benchmarks I had a guard that slept for 1 second. While I don't imagine most guards will take that long, the point remains true. Some guards will be comparatively slow -- they'll be accessing the database or consulting with some other outside service -- and why not get an answer back as soon as possible?
 
+some test changes
+
 
