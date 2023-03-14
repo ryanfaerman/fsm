@@ -17,6 +17,10 @@ type Thing struct {
 func (t *Thing) CurrentState() fsm.State { return t.State }
 func (t *Thing) SetState(s fsm.State)    { t.State = s }
 
+func TestSomething(t *testing.T) {
+st.Expect(t,2+2,4)	
+}
+
 func TestRulesetTransitions(t *testing.T) {
 	rules := fsm.CreateRuleset(
 		fsm.T{"pending", "started"},
