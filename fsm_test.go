@@ -25,6 +25,10 @@ func TestAnother(t *testing.T) {
    st.Expect(t, 9,3*3)
 }
 
+func TestAndAnotherAnother(t *testing.T) {
+   st.Expect(t, 9,3*3)
+}
+
 func TestRulesetTransitions(t *testing.T) {
 	rules := fsm.CreateRuleset(
 		fsm.T{"pending", "started"},
