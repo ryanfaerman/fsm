@@ -2,7 +2,6 @@ package fsm_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/nbio/st"
 	"github.com/ryanfaerman/fsm"
@@ -46,25 +45,6 @@ func TestRulesetTransitions(t *testing.T) {
 	}
 }
 
-func TestRulesetParallelGuarding(t *testing.T) {
-	rules := fsm.Ruleset{}
-	rules.AddTransition(fsm.T{"pending", "started"})
-	rules.AddTransition(fsm.T{"started", "finished"})
-
-	// Add two failing rules, the slow should be caught first
-	rules.AddRule(fsm.T{"started", "finished"}, func(subject fsm.Stater, goal fsm.State) bool {
-		time.Sleep(1 * time.Second)
-		t.Error("Slow rule should have been short-circuited")
-		return false
-	})
-
-	rules.AddRule(fsm.T{"started", "finished"}, func(subject fsm.Stater, goal fsm.State) bool {
-		return false
-	})
-
-	st.Expect(t, rules.Permitted(&Thing{State: "started"}, "finished"), false)
-}
-
 func TestMachineTransition(t *testing.T) {
 	rules := fsm.Ruleset{}
 	rules.AddTransition(fsm.T{"pending", "started"})
@@ -77,40 +57,18 @@ func TestMachineTransition(t *testing.T) {
 
 	// should not be able to transition to the current state
 	err = the_machine.Transition("pending")
-	st.Expect(t, err, fsm.InvalidTransition)
+	st.Expect(t, err, fsm.ErrInvalidTransition)
 	st.Expect(t, some_thing.State, fsm.State("pending"))
 
 	// should not be able to skip states
 	err = the_machine.Transition("finished")
-	st.Expect(t, err, fsm.InvalidTransition)
+	st.Expect(t, err, fsm.ErrInvalidTransition)
 	st.Expect(t, some_thing.State, fsm.State("pending"))
 
 	// should be able to transition to the next valid state
 	err = the_machine.Transition("started")
 	st.Expect(t, err, nil)
 	st.Expect(t, some_thing.State, fsm.State("started"))
-}
-
-func BenchmarkRulesetParallelGuarding(b *testing.B) {
-	rules := fsm.Ruleset{}
-	rules.AddTransition(fsm.T{"pending", "started"})
-	rules.AddTransition(fsm.T{"started", "finished"})
-
-	// Add two failing rules, one very slow and the other terribly fast
-	rules.AddRule(fsm.T{"started", "finished"}, func(subject fsm.Stater, goal fsm.State) bool {
-		time.Sleep(1 * time.Second)
-		return false
-	})
-
-	rules.AddRule(fsm.T{"started", "finished"}, func(subject fsm.Stater, goal fsm.State) bool {
-		return false
-	})
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		rules.Permitted(&Thing{State: "started"}, "finished")
-	}
 }
 
 func BenchmarkRulesetTransitionPermitted(b *testing.B) {
@@ -129,7 +87,6 @@ func BenchmarkRulesetTransitionPermitted(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		rules.Permitted(some_thing, "finished")
 	}
-
 }
 
 func BenchmarkRulesetTransitionInvalid(b *testing.B) {

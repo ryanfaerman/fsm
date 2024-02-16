@@ -8,9 +8,7 @@ type State string
 // Returning true/false indicates if the transition is permitted or not.
 type Guard func(subject Stater, goal State) bool
 
-var (
-	InvalidTransition = errors.New("invalid transition")
-)
+var ErrInvalidTransition = errors.New("invalid transition")
 
 // Transition is the change between States
 type Transition interface {
@@ -32,9 +30,7 @@ type Ruleset map[Transition][]Guard
 
 // AddRule adds Guards for the given Transition
 func (r Ruleset) AddRule(t Transition, guards ...Guard) {
-	for _, guard := range guards {
-		r[t] = append(r[t], guard)
-	}
+	r[t] = append(r[t], guards...)
 }
 
 // AddTransition adds a transition with a default rule
@@ -57,27 +53,13 @@ func CreateRuleset(transitions ...Transition) Ruleset {
 }
 
 // Permitted determines if a transition is allowed.
-// This occurs in parallel.
-// NOTE: Guards are not halted if they are short-circuited for some
-// transition. They may continue running *after* the outcome is determined.
 func (r Ruleset) Permitted(subject Stater, goal State) bool {
 	attempt := T{subject.CurrentState(), goal}
 
 	if guards, ok := r[attempt]; ok {
-		outcome := make(chan bool)
-
 		for _, guard := range guards {
-			go func(g Guard) {
-				outcome <- g(subject, goal)
-			}(guard)
-		}
-
-		for range guards {
-			select {
-			case o := <-outcome:
-				if !o {
-					return false
-				}
+			if !guard(subject, goal) {
+				return false
 			}
 		}
 
