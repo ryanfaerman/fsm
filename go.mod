@@ -1,4 +1,4 @@
-module github.com/ryanfaerman/fsm
+module github.com/ryanfaerman/fsm/v3
 
 go 1.21.6
 
